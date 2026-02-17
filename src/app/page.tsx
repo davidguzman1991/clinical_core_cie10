@@ -1,14 +1,21 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import { AlertCircle, Star, Clock, Search as SearchIcon, Sparkles } from "lucide-react";
 
-import ICDResultCard from "../components/clinical/ICDResultCard";
-import SearchInput from "../components/clinical/SearchInput";
-import Skeleton from "../components/clinical/Skeleton";
-import { Button } from "../components/ui/button";
-import { useToast } from "../components/ui/use-toast";
-import { useICDSearch } from "../hooks/useICDSearch";
-import { getClinicalApiBase } from "../lib/api";
+import HeroSection from "@/components/clinical/HeroSection";
+import SearchInput from "@/components/clinical/SearchInput";
+import AIStatusCard from "@/components/clinical/AIStatusCard";
+import QuickExamples from "@/components/clinical/QuickExamples";
+import EvidenceCards from "@/components/clinical/EvidenceCards";
+import ICDResultCard from "@/components/clinical/ICDResultCard";
+import Skeleton from "@/components/clinical/Skeleton";
+import BottomNav from "@/components/clinical/BottomNav";
+import ThemeToggle from "@/components/clinical/ThemeToggle";
+import { Button } from "@/components/ui/button";
+import { useToast } from "@/components/ui/use-toast";
+import { useICDSearch } from "@/hooks/useICDSearch";
 
 const FAVORITES_STORAGE_KEY = "clinical-core.favorite-icd10";
 const RECENT_SEARCHES_STORAGE_KEY = "clinical-core.recent-searches";
@@ -25,17 +32,12 @@ export default function Home() {
   const [selectedCode, setSelectedCode] = useState<string | null>(null);
   const [favoriteCodes, setFavoriteCodes] = useState<string[]>([]);
   const [recentSearches, setRecentSearches] = useState<string[]>([]);
+  const [activeTab, setActiveTab] = useState("search");
   const { toast } = useToast();
   const { results, loading, error } = useICDSearch(query, { limit: 20 });
   const trimmedQuery = query.trim();
   const noResultsToastQueryRef = useRef<string | null>(null);
   const errorToastRef = useRef<string | null>(null);
-
-  const subtitle = useMemo(() => {
-    const base = getClinicalApiBase();
-    if (!base) return "Configura NEXT_PUBLIC_API_URL para habilitar búsquedas.";
-    return "Busca diagnósticos ICD-10 rápido, desde el celular.";
-  }, []);
 
   useEffect(() => {
     try {
@@ -70,11 +72,7 @@ export default function Home() {
 
   useEffect(() => {
     if (!copiedCode) return;
-
-    const handle = window.setTimeout(() => {
-      setCopiedCode(null);
-    }, 1400);
-
+    const handle = window.setTimeout(() => setCopiedCode(null), 1400);
     return () => window.clearTimeout(handle);
   }, [copiedCode]);
 
@@ -83,7 +81,6 @@ export default function Home() {
       noResultsToastQueryRef.current = null;
       return;
     }
-
     if (loading || error || results.length > 0) return;
     if (noResultsToastQueryRef.current === trimmedQuery) return;
 
@@ -99,7 +96,6 @@ export default function Home() {
       errorToastRef.current = null;
       return;
     }
-
     if (errorToastRef.current === error) return;
     errorToastRef.current = error;
 
@@ -114,7 +110,6 @@ export default function Home() {
   const pushRecentSearch = (value: string) => {
     const cleaned = value.trim();
     if (!cleaned) return;
-
     setRecentSearches((prev) => {
       const deduped = [cleaned, ...prev.filter((item) => item.toLowerCase() !== cleaned.toLowerCase())];
       return deduped.slice(0, MAX_RECENT_SEARCHES);
@@ -154,117 +149,202 @@ export default function Home() {
         toast({ title: "Favorito eliminado", description: `${code} removido de favoritos.` });
         return prev.filter((item) => item !== code);
       }
-
       toast({ title: "Favorito guardado", description: `${code} agregado a favoritos.` });
       return [code, ...prev];
     });
   };
 
+  const hasResults = results.length > 0;
+  const showEmptyState = !loading && trimmedQuery.length === 0 && !hasResults;
+  const showNoResults = !loading && trimmedQuery.length > 0 && !error && !hasResults;
+
   return (
-    <div className="relative min-h-screen overflow-hidden bg-[linear-gradient(160deg,#eff6ff_0%,#dff8f5_34%,#d9e5ff_64%,#edf1ff_100%)] text-slate-900">
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_14%_16%,rgba(45,212,191,0.18),transparent_34%),radial-gradient(circle_at_86%_7%,rgba(59,130,246,0.22),transparent_28%)]" />
+    <div className="relative min-h-screen bg-background text-foreground">
+      {/* Background decorations */}
+      <div className="pointer-events-none fixed inset-0 overflow-hidden">
+        <div className="absolute -left-32 -top-32 h-96 w-96 rounded-full bg-turquoise-500/[0.07] blur-3xl dark:bg-turquoise-500/[0.04]" />
+        <div className="absolute -right-32 top-1/4 h-80 w-80 rounded-full bg-purple-ai-500/[0.06] blur-3xl dark:bg-purple-ai-500/[0.03]" />
+        <div className="absolute -bottom-40 left-1/3 h-96 w-96 rounded-full bg-turquoise-300/[0.05] blur-3xl dark:bg-turquoise-500/[0.02]" />
+      </div>
 
-      <div className="relative mx-auto w-full max-w-6xl px-4 pb-12 pt-6 sm:px-6 lg:px-8">
-        <header className="mb-5 rounded-3xl border border-white/45 bg-white/65 p-5 shadow-[0_18px_48px_-28px_rgba(15,23,42,0.5)] backdrop-blur-md">
-          <h1 className="text-2xl font-semibold tracking-tight text-slate-900">Clinical Core</h1>
-          <p className="mt-1 text-sm text-slate-600">{subtitle}</p>
-        </header>
+      {/* Theme toggle — fixed top-right */}
+      <div className="fixed right-4 top-4 z-50">
+        <ThemeToggle />
+      </div>
 
-        <div className="sticky top-0 z-20 -mx-4 rounded-2xl border-y border-white/45 bg-white/65 px-4 pb-3 pt-3 shadow-sm backdrop-blur-md sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8">
+      {/* Main content */}
+      <div className="relative mx-auto w-full max-w-3xl px-4 pb-24 sm:pb-12">
+        {/* Hero */}
+        <HeroSection />
+
+        {/* Search */}
+        <div className="mt-6 px-1">
           <SearchInput
             value={query}
             onChange={setQuery}
             onClear={() => setQuery("")}
             loading={loading}
-            placeholder="Buscar diagnóstico, ejemplo: diabetes, infección, hipertensión"
+            placeholder="Escribe diagnóstico, síntoma o palabra clave…"
           />
-          <p className="mt-2 text-xs text-slate-500">
-            Debounce 400ms. Requests anteriores se cancelan. Máximo 20 resultados.
-          </p>
-          <p className="mt-1 text-xs text-slate-500">
-            API: <span className="font-medium">{getClinicalApiBase() ?? "undefined"}</span>
-          </p>
-
-          {recentSearches.length > 0 && (
-            <div className="mt-3 flex flex-wrap gap-2">
-              <span className="text-xs font-medium uppercase tracking-[0.16em] text-cyan-700">Recent</span>
-              {recentSearches.map((item) => (
-                <Button
-                  key={item}
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setQuery(item)}
-                  className="h-7 rounded-full px-3"
-                >
-                  {item}
-                </Button>
-              ))}
-            </div>
-          )}
         </div>
 
-        {error && (
-          <div className="mt-4 rounded-2xl border border-red-200 bg-red-50/95 px-4 py-3 text-sm text-red-800 shadow-sm">
-            {error}
-          </div>
-        )}
+        {/* AI Status */}
+        <AIStatusCard />
 
-        <main className="mt-5">
-          {loading && <Skeleton lines={6} />}
-
-          {!loading && trimmedQuery.length > 0 && !error && results.length === 0 && (
-            <div className="rounded-2xl border border-white/50 bg-white/70 px-4 py-3 text-sm text-slate-600 shadow-sm backdrop-blur-sm">
-              Sin resultados.
-            </div>
-          )}
-
-          {!loading && results.length > 0 && (
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
-              {results.map((item) => (
-                <ICDResultCard
-                  key={`${item.code}-${item.description}`}
-                  code={item.code}
-                  diagnosisName={item.description}
-                  shortDescription={trimText(item.description)}
-                  copied={copiedCode === item.code}
-                  isSelected={selectedCode === item.code}
-                  isFavorite={favoriteCodes.includes(item.code)}
-                  onCopy={handleCopy}
-                  onSelect={handleSelect}
-                  onToggleFavorite={handleToggleFavorite}
-                />
-              ))}
-            </div>
-          )}
-
-          {!loading && trimmedQuery.length === 0 && (
-            <div className="rounded-2xl border border-white/50 bg-white/70 px-4 py-3 text-sm text-slate-600 shadow-sm backdrop-blur-sm">
-              Empieza escribiendo para buscar en ICD-10.
-            </div>
-          )}
-
-          {!loading && favoriteCodes.length > 0 && (
-            <section className="mt-6 rounded-2xl border border-white/45 bg-white/60 p-4 shadow-sm backdrop-blur-sm">
-              <h2 className="text-sm font-semibold uppercase tracking-[0.16em] text-cyan-800">
-                Favorites
-              </h2>
-              <div className="mt-3 flex flex-wrap gap-2">
-                {favoriteCodes.map((code) => (
+        {/* Recent searches */}
+        <AnimatePresence>
+          {recentSearches.length > 0 && !hasResults && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: "auto" }}
+              exit={{ opacity: 0, height: 0 }}
+              className="mx-auto mt-4 w-full max-w-2xl overflow-hidden"
+            >
+              <div className="flex items-center gap-2 mb-2.5 px-1">
+                <Clock className="h-3.5 w-3.5 text-muted-foreground" />
+                <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                  Búsquedas recientes
+                </span>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {recentSearches.map((item) => (
                   <Button
-                    key={code}
+                    key={item}
                     variant="outline"
                     size="sm"
-                    onClick={() => handleSelect(code)}
+                    onClick={() => setQuery(item)}
                     className="rounded-full"
                   >
-                    {code}
+                    <SearchIcon className="h-3 w-3 mr-1 opacity-50" />
+                    {item}
                   </Button>
                 ))}
               </div>
-            </section>
+            </motion.div>
           )}
+        </AnimatePresence>
+
+        {/* Error state */}
+        <AnimatePresence>
+          {error && (
+            <motion.div
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -8 }}
+              className="mx-auto mt-4 w-full max-w-2xl rounded-2xl border border-red-200 bg-red-50/90 px-4 py-3 dark:border-red-800/40 dark:bg-red-950/50"
+            >
+              <div className="flex items-start gap-3">
+                <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-red-500" />
+                <p className="text-sm text-red-700 dark:text-red-300">{error}</p>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Results section */}
+        <main className="mx-auto mt-5 w-full max-w-2xl">
+          {/* Loading */}
+          {loading && <Skeleton lines={4} />}
+
+          {/* Results grid */}
+          <AnimatePresence mode="wait">
+            {!loading && hasResults && (
+              <motion.div
+                key="results"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+              >
+                <div className="flex items-center gap-2 mb-3 px-1">
+                  <Sparkles className="h-3.5 w-3.5 text-turquoise-500" />
+                  <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                    {results.length} resultado{results.length !== 1 ? "s" : ""}
+                  </span>
+                </div>
+                <div className="grid grid-cols-1 gap-3">
+                  {results.map((item, idx) => (
+                    <ICDResultCard
+                      key={`${item.code}-${item.description}`}
+                      code={item.code}
+                      diagnosisName={item.description}
+                      shortDescription={trimText(item.description)}
+                      copied={copiedCode === item.code}
+                      isSelected={selectedCode === item.code}
+                      isFavorite={favoriteCodes.includes(item.code)}
+                      onCopy={handleCopy}
+                      onSelect={handleSelect}
+                      onToggleFavorite={handleToggleFavorite}
+                      index={idx}
+                    />
+                  ))}
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          {/* No results */}
+          <AnimatePresence>
+            {showNoResults && (
+              <motion.div
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0 }}
+                className="flex flex-col items-center rounded-2xl border border-border bg-card px-6 py-10 text-center"
+              >
+                <SearchIcon className="mb-3 h-10 w-10 text-muted-foreground/40" />
+                <p className="text-sm font-medium text-foreground">Sin resultados</p>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  No encontramos CIE-10 para &quot;{trimmedQuery}&quot;. Intenta con otro término.
+                </p>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          {/* Favorites section */}
+          <AnimatePresence>
+            {!loading && favoriteCodes.length > 0 && (
+              <motion.section
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0 }}
+                className="mt-6"
+              >
+                <div className="flex items-center gap-2 mb-3 px-1">
+                  <Star className="h-3.5 w-3.5 text-amber-500" />
+                  <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                    Favoritos
+                  </span>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {favoriteCodes.map((code) => (
+                    <Button
+                      key={code}
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleSelect(code)}
+                      className="rounded-full"
+                    >
+                      <Star className="h-3 w-3 mr-1 fill-amber-400 text-amber-400" />
+                      {code}
+                    </Button>
+                  ))}
+                </div>
+              </motion.section>
+            )}
+          </AnimatePresence>
         </main>
+
+        {/* Empty state — show quick examples and evidence */}
+        {showEmptyState && (
+          <>
+            <QuickExamples onSelect={setQuery} />
+            <EvidenceCards />
+          </>
+        )}
       </div>
+
+      {/* Bottom navigation (mobile only) */}
+      <BottomNav activeTab={activeTab} onTabChange={setActiveTab} />
     </div>
   );
 }

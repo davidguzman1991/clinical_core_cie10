@@ -1,14 +1,9 @@
+"use client";
+
+import { motion } from "framer-motion";
+import { Copy, Check, Star, FileText, ChevronRight } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { Tooltip } from "@/components/ui/tooltip";
+import { cn } from "@/lib/utils";
 
 type ICDResultCardProps = {
   code: string;
@@ -20,6 +15,7 @@ type ICDResultCardProps = {
   onCopy: (code: string) => void;
   onSelect: (code: string) => void;
   onToggleFavorite: (code: string) => void;
+  index?: number;
 };
 
 export default function ICDResultCard({
@@ -32,63 +28,100 @@ export default function ICDResultCard({
   onCopy,
   onSelect,
   onToggleFavorite,
+  index = 0,
 }: ICDResultCardProps) {
   return (
-    <Card className="group relative overflow-hidden border-white/35 bg-gradient-to-br from-white/90 via-cyan-50/65 to-slate-100/80 transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_20px_45px_-24px_rgba(8,145,178,0.65)] focus-within:ring-2 focus-within:ring-cyan-500/40">
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(45,212,191,0.18),transparent_45%)]" />
+    <motion.div
+      initial={{ opacity: 0, y: 16 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.35, delay: index * 0.04, ease: "easeOut" }}
+      className={cn(
+        "group relative overflow-hidden rounded-2xl border bg-card p-4 transition-all duration-300",
+        "hover:shadow-[0_8px_28px_-8px_var(--shadow-heavy)] hover:-translate-y-0.5",
+        isSelected
+          ? "border-turquoise-400/60 bg-turquoise-50/30 dark:border-turquoise-600/40 dark:bg-turquoise-900/10"
+          : "border-border"
+      )}
+    >
+      <div className="pointer-events-none absolute -right-12 -top-12 h-28 w-28 rounded-full bg-gradient-to-br from-turquoise-500/[0.06] to-purple-ai-500/[0.06] blur-xl transition-opacity group-hover:opacity-100 opacity-0" />
 
-      <CardHeader className="relative pb-3">
-        <div className="mb-3 flex items-start justify-between gap-3">
-          <Badge className="text-sm tracking-[0.22em]">{code}</Badge>
+      <div className="relative">
+        <div className="flex items-start justify-between gap-3 mb-3">
+          <div className="flex items-center gap-2">
+            <Badge variant="default" className="font-mono text-[11px] tracking-widest">
+              {code}
+            </Badge>
+            {isSelected && (
+              <Badge variant="success" className="text-[10px]">
+                Seleccionado
+              </Badge>
+            )}
+          </div>
 
-          <Tooltip content={isFavorite ? "Quitar de favoritos" : "Agregar a favoritos"}>
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => onToggleFavorite(code)}
-              aria-label={isFavorite ? "Quitar de favoritos" : "Agregar a favoritos"}
-              aria-pressed={isFavorite}
-              className="h-9 w-9 rounded-full text-cyan-700 hover:bg-cyan-100"
-            >
-              <span aria-hidden="true" className="text-lg leading-none">
-                {isFavorite ? "★" : "☆"}
-              </span>
-            </Button>
-          </Tooltip>
+          <motion.button
+            type="button"
+            whileTap={{ scale: 0.85 }}
+            onClick={() => onToggleFavorite(code)}
+            aria-label={isFavorite ? "Quitar de favoritos" : "Agregar a favoritos"}
+            aria-pressed={isFavorite}
+            className={cn(
+              "flex h-9 w-9 items-center justify-center rounded-xl transition-all",
+              isFavorite
+                ? "bg-amber-50 text-amber-500 dark:bg-amber-900/20 dark:text-amber-400"
+                : "text-muted-foreground hover:bg-muted hover:text-foreground"
+            )}
+          >
+            <Star
+              className={cn("h-[18px] w-[18px] transition-all", isFavorite && "fill-current")}
+            />
+          </motion.button>
         </div>
 
-        <CardTitle className="line-clamp-2 text-balance text-[1.02rem] text-slate-900">
+        <h3 className="line-clamp-2 text-[15px] font-semibold leading-snug text-foreground mb-1">
           {diagnosisName}
-        </CardTitle>
-        <CardDescription className="line-clamp-3 text-sm leading-relaxed text-slate-600">
+        </h3>
+        <p className="line-clamp-2 text-xs text-muted-foreground leading-relaxed mb-4">
           {shortDescription}
-        </CardDescription>
-      </CardHeader>
+        </p>
 
-      <CardContent className="relative" />
-
-      <CardFooter className="relative flex flex-wrap gap-2">
-        <Tooltip content={copied ? "Copiado" : "Copiar ICD10"}>
-          <Button
-            variant="outline"
-            className="flex-1 min-w-[10rem]"
+        <div className="flex items-center gap-2">
+          <motion.button
+            type="button"
+            whileTap={{ scale: 0.95 }}
             onClick={() => onCopy(code)}
             aria-live="polite"
+            className={cn(
+              "flex h-10 flex-1 items-center justify-center gap-2 rounded-xl border text-sm font-medium transition-all",
+              copied
+                ? "border-turquoise-300 bg-turquoise-50 text-turquoise-700 dark:border-turquoise-700 dark:bg-turquoise-900/20 dark:text-turquoise-300"
+                : "border-border bg-card text-foreground hover:border-turquoise-300 hover:bg-turquoise-50/50 dark:hover:bg-turquoise-900/20"
+            )}
           >
-            <span aria-hidden="true">{copied ? "✓" : "⧉"}</span>
-            <span>{copied ? "Copiado" : "Copy ICD10"}</span>
-          </Button>
-        </Tooltip>
+            {copied ? (
+              <Check className="h-4 w-4" />
+            ) : (
+              <Copy className="h-4 w-4" />
+            )}
+            <span>{copied ? "Copiado" : "Copiar"}</span>
+          </motion.button>
 
-        <Button
-          className="flex-1 min-w-[10rem]"
-          onClick={() => onSelect(code)}
-          aria-pressed={isSelected}
-        >
-          <span aria-hidden="true">{isSelected ? "✓" : "↳"}</span>
-          <span>{isSelected ? "Seleccionado" : "Select ICD10"}</span>
-        </Button>
-      </CardFooter>
-    </Card>
+          <motion.button
+            type="button"
+            whileTap={{ scale: 0.95 }}
+            onClick={() => onSelect(code)}
+            className={cn(
+              "flex h-10 flex-1 items-center justify-center gap-2 rounded-xl text-sm font-medium transition-all",
+              isSelected
+                ? "bg-turquoise-500 text-white shadow-[0_4px_12px_-4px_rgba(0,184,184,0.4)]"
+                : "bg-gradient-to-r from-turquoise-500 to-purple-ai-500 text-white shadow-[0_4px_12px_-4px_rgba(108,99,255,0.3)] hover:shadow-[0_6px_18px_-4px_rgba(108,99,255,0.4)]"
+            )}
+          >
+            <FileText className="h-4 w-4" />
+            <span>Usar en receta</span>
+            <ChevronRight className="h-3.5 w-3.5 opacity-60" />
+          </motion.button>
+        </div>
+      </div>
+    </motion.div>
   );
 }

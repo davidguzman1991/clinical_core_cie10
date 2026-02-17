@@ -12,10 +12,10 @@ export function Toast({ className, variant = "default", ...props }: ToastProps) 
   return (
     <div
       className={cn(
-        "w-full rounded-xl border p-4 shadow-lg backdrop-blur-sm",
+        "w-full rounded-2xl border p-4 shadow-lg backdrop-blur-md",
         variant === "destructive"
-          ? "border-red-300 bg-red-50/95 text-red-900"
-          : "border-cyan-200/90 bg-[linear-gradient(145deg,rgba(255,255,255,0.97)_0%,rgba(236,254,255,0.96)_46%,rgba(239,246,255,0.97)_100%)] text-slate-900",
+          ? "border-red-300/60 bg-red-50/95 text-red-900 dark:border-red-800/60 dark:bg-red-950/90 dark:text-red-200"
+          : "border-turquoise-200/60 bg-card/95 text-foreground dark:border-turquoise-800/40",
         className
       )}
       {...props}
@@ -24,12 +24,12 @@ export function Toast({ className, variant = "default", ...props }: ToastProps) 
 }
 
 export function ToastTitle({ className, ...props }: React.HTMLAttributes<HTMLHeadingElement>) {
-  return <h4 className={cn("text-sm font-semibold", className)} {...props} />;
+  return <h4 className={cn("text-sm font-semibold text-foreground", className)} {...props} />;
 }
 
 export function ToastDescription({
   className,
   ...props
 }: React.HTMLAttributes<HTMLParagraphElement>) {
-  return <p className={cn("mt-1 text-xs text-cyan-900/75", className)} {...props} />;
+  return <p className={cn("mt-1 text-xs text-muted-foreground", className)} {...props} />;
 }
