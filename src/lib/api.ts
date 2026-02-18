@@ -1,16 +1,11 @@
-const API_URL =
-  process.env.NEXT_PUBLIC_API_BASE_URL ??
-  process.env.VITE_API_BASE_URL ??
-  process.env.NEXT_PUBLIC_API_URL;
+export const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
 
-export function getClinicalApiBase(): string | null {
-  const raw = API_URL;
+function normalizeBaseUrl(raw: string | undefined): string | null {
   if (!raw) return null;
 
   const trimmed = raw.trim();
   if (!trimmed) return null;
 
-  // Guard against common mistakes like trailing '.' or '/'
   const withoutTrailingDot = trimmed.endsWith(".")
     ? trimmed.slice(0, -1)
     : trimmed;
@@ -22,17 +17,43 @@ export function getClinicalApiBase(): string | null {
   return withoutTrailingSlash || null;
 }
 
+export function getClinicalApiBase(): string | null {
+  return normalizeBaseUrl(API_BASE_URL);
+}
+
+export function buildUrl(
+  path: string,
+  params?: Record<string, string | number | boolean | undefined>
+): string | null {
+  const base = getClinicalApiBase();
+  if (!base) return null;
+
+  const normalizedPath = path.startsWith("/") ? path : `/${path}`;
+  const url = new URL(`${base}${normalizedPath}`);
+
+  if (params) {
+    const query = new URLSearchParams();
+    Object.entries(params).forEach(([key, value]) => {
+      if (value === undefined || value === null) return;
+      query.set(key, String(value));
+    });
+    const queryString = query.toString();
+    if (queryString) {
+      url.search = queryString;
+    }
+  }
+
+  return url.toString();
+}
+
 export async function apiFetch<T = unknown>(
   endpoint: string,
   options?: RequestInit
 ): Promise<T> {
-  const base = getClinicalApiBase();
-  if (!base) {
-    throw new Error("NEXT_PUBLIC_API_URL is not configured.");
+  const requestUrl = buildUrl(endpoint);
+  if (!requestUrl) {
+    throw new Error("NEXT_PUBLIC_API_BASE_URL is not configured.");
   }
-
-  const normalizedEndpoint = endpoint.startsWith("/") ? endpoint : `/${endpoint}`;
-  const requestUrl = `${base}${normalizedEndpoint}`;
 
   console.info(`[API] Request endpoint: ${requestUrl}`);
 
@@ -259,20 +280,7 @@ export function buildClinicalApiUrl(
   path: string,
   query?: Record<string, string | number | boolean | undefined>
 ): string | null {
-  const base = getClinicalApiBase();
-  if (!base) return null;
-
-  const normalizedPath = path.replace(/^\/+/, "");
-  const url = new URL(`${base}/${normalizedPath}`);
-
-  if (query) {
-    Object.entries(query).forEach(([key, value]) => {
-      if (value === undefined || value === null) return;
-      url.searchParams.set(key, String(value));
-    });
-  }
-
-  return url.toString();
+  return buildUrl(path, query);
 }
 
 export async function fetchJson<T>(input: string, init: FetchJsonOptions = {}): Promise<T> {

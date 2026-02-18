@@ -3,9 +3,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 
 import {
-  buildClinicalApiUrl,
+  buildUrl,
   fetchJson,
-  getClinicalApiBase,
   isNetworkLikeError,
   toUserFacingApiError,
 } from "../lib/api";
@@ -85,7 +84,6 @@ export function useICDSearch(query: string, options?: { limit?: number }) {
     error: null,
   });
 
-  const apiBase = getClinicalApiBase();
   const trimmed = useMemo(() => query.trim(), [query]);
   const shouldSearch = trimmed.length > 0;
 
@@ -97,16 +95,6 @@ export function useICDSearch(query: string, options?: { limit?: number }) {
       return;
     }
 
-    if (!apiBase) {
-      setState({
-        results: [],
-        loading: false,
-        error:
-          "Falta configurar NEXT_PUBLIC_API_URL. Asegúrate de tener .env.local (con punto) en el root y reinicia el dev server.",
-      });
-      return;
-    }
-
     const handle = window.setTimeout(async () => {
       abortRef.current?.abort();
       const controller = new AbortController();
@@ -115,9 +103,11 @@ export function useICDSearch(query: string, options?: { limit?: number }) {
       setState((s) => ({ ...s, loading: true, error: null }));
 
       try {
-        const directUrl = buildClinicalApiUrl("clinical/icd10/search", { q: trimmed });
+        const directUrl = buildUrl("/clinical/icd10/search", { q: trimmed });
         if (!directUrl) {
-          throw new Error("Clinical API base URL is not configured.");
+          throw new Error(
+            "Falta configurar NEXT_PUBLIC_API_BASE_URL. Asegúrate de tener .env.local (con punto) en el root y reinicia el dev server."
+          );
         }
 
         let json: unknown;
@@ -132,7 +122,7 @@ export function useICDSearch(query: string, options?: { limit?: number }) {
             throw error;
           }
 
-          const proxyUrl = `/api/clinical/icd10/search?q=${encodeURIComponent(trimmed)}`;
+          const proxyUrl = `/api/icd10/search?${new URLSearchParams({ q: trimmed }).toString()}`;
           json = await fetchJson<unknown>(proxyUrl, {
             signal: controller.signal,
             timeoutMs: 9000,
@@ -165,7 +155,7 @@ export function useICDSearch(query: string, options?: { limit?: number }) {
     return () => {
       window.clearTimeout(handle);
     };
-  }, [apiBase, limit, shouldSearch, trimmed]);
+  }, [limit, shouldSearch, trimmed]);
 
   useEffect(() => {
     return () => abortRef.current?.abort();

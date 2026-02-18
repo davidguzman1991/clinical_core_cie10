@@ -11,7 +11,7 @@ import {
 } from "react";
 
 import {
-  buildClinicalApiUrl,
+  buildUrl,
   fetchJson,
   isNetworkLikeError,
   toUserFacingApiError,
@@ -164,7 +164,7 @@ const OptionItem = memo(function OptionItem({
 });
 
 async function queryICD10(q: string, signal: AbortSignal): Promise<ICD10Option[]> {
-  const directUrl = buildClinicalApiUrl("clinical/icd10/search", { q });
+  const directUrl = buildUrl("/clinical/icd10/search", { q });
 
   try {
     if (directUrl) {
@@ -190,7 +190,7 @@ async function queryICD10(q: string, signal: AbortSignal): Promise<ICD10Option[]
   }
 
   const proxyPayload = await fetchJson<unknown>(
-    `/api/clinical/icd10/search?q=${encodeURIComponent(q)}`,
+    `/api/icd10/search?${new URLSearchParams({ q }).toString()}`,
     {
       signal,
       cache: "no-store",
