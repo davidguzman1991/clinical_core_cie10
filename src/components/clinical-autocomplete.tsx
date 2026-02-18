@@ -147,7 +147,7 @@ const OptionItem = memo(function OptionItem({
 });
 
 async function queryICD10(q: string, signal: AbortSignal): Promise<ICD10Option[]> {
-  const directUrl = buildClinicalApiUrl("icd10/search", { q });
+  const directUrl = buildClinicalApiUrl("clinical/icd10/search", { q });
 
   try {
     if (directUrl) {
@@ -169,7 +169,7 @@ async function queryICD10(q: string, signal: AbortSignal): Promise<ICD10Option[]
   }
 
   const proxyPayload = await fetchJson<unknown>(
-    `/api/icd10/search?q=${encodeURIComponent(q)}`,
+    `/api/clinical/icd10/search?q=${encodeURIComponent(q)}`,
     {
       signal,
       cache: "no-store",

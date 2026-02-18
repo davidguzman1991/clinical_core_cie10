@@ -82,7 +82,7 @@ export function useICDSearch(query: string, options?: { limit?: number }) {
       setState((s) => ({ ...s, loading: true, error: null }));
 
       try {
-        const directUrl = buildClinicalApiUrl("icd10/search", { q: trimmed });
+        const directUrl = buildClinicalApiUrl("clinical/icd10/search", { q: trimmed });
         if (!directUrl) {
           throw new Error("Clinical API base URL is not configured.");
         }
@@ -99,7 +99,7 @@ export function useICDSearch(query: string, options?: { limit?: number }) {
             throw error;
           }
 
-          const proxyUrl = `/api/icd10/search?q=${encodeURIComponent(trimmed)}`;
+          const proxyUrl = `/api/clinical/icd10/search?q=${encodeURIComponent(trimmed)}`;
           json = await fetchJson<unknown>(proxyUrl, {
             signal: controller.signal,
             timeoutMs: 9000,

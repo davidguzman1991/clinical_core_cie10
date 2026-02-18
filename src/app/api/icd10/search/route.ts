@@ -13,10 +13,10 @@ export async function GET(request: NextRequest) {
     );
   }
 
-  const upstreamUrl = buildClinicalApiUrl("icd10/search", { q });
+  const upstreamUrl = buildClinicalApiUrl("clinical/icd10/search", { q });
   if (!upstreamUrl) {
     return NextResponse.json(
-      { detail: "NEXT_PUBLIC_API_URL is not configured on the server." },
+      { detail: "NEXT_PUBLIC_API_BASE_URL or VITE_API_BASE_URL is not configured on the server." },
       { status: 500 }
     );
   }

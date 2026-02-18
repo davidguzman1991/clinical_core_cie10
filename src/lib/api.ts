@@ -1,4 +1,7 @@
-const API_URL = process.env.NEXT_PUBLIC_API_URL;
+const API_URL =
+  process.env.NEXT_PUBLIC_API_BASE_URL ??
+  process.env.VITE_API_BASE_URL ??
+  process.env.NEXT_PUBLIC_API_URL;
 
 export function getClinicalApiBase(): string | null {
   const raw = API_URL;
@@ -29,8 +32,11 @@ export async function apiFetch<T = unknown>(
   }
 
   const normalizedEndpoint = endpoint.startsWith("/") ? endpoint : `/${endpoint}`;
+  const requestUrl = `${base}${normalizedEndpoint}`;
 
-  const response = await fetch(`${base}${normalizedEndpoint}`, {
+  console.info(`[API] Request endpoint: ${requestUrl}`);
+
+  const response = await fetch(requestUrl, {
     ...options,
     headers: {
       "Content-Type": "application/json",
@@ -167,6 +173,8 @@ async function fetchJsonAttempt<T>(input: string, init: FetchJsonOptions): Promi
   const { signal, wasTimedOut, cleanup } = withTimeoutSignal(init.signal, timeoutMs);
 
   try {
+    console.info(`[API] Request endpoint: ${input}`);
+
     const res = await fetch(input, {
       ...requestInit,
       signal,
