@@ -11,7 +11,9 @@ import {
 } from "../lib/api";
 
 export type ICD10SearchResult = {
-  code: string;
+  code?: string;
+  compact_code?: string;
+  label?: string;
   description: string;
 };
 
@@ -21,25 +23,56 @@ type UseICDSearchState = {
   error: string | null;
 };
 
+function extractICDItems(data: unknown): unknown[] {
+  if (Array.isArray(data)) return data;
+
+  if (data && typeof data === "object") {
+    const record = data as Record<string, unknown>;
+    if (Array.isArray(record.results)) return record.results;
+    return [record];
+  }
+
+  return [];
+}
+
 function normalizeICDResult(item: unknown): ICD10SearchResult | null {
   if (!item || typeof item !== "object") return null;
   const obj = item as Record<string, unknown>;
 
   const code =
     (typeof obj.code === "string" && obj.code) ||
+    (typeof obj.compact_code === "string" && obj.compact_code) ||
     (typeof obj.icd === "string" && obj.icd) ||
     (typeof obj.icd10 === "string" && obj.icd10) ||
     (typeof obj.icd_code === "string" && obj.icd_code) ||
+    "";
+
+  const compactCode =
+    (typeof obj.compact_code === "string" && obj.compact_code) ||
+    (typeof obj.icd_compact === "string" && obj.icd_compact) ||
+    "";
+
+  const label =
+    (typeof obj.label === "string" && obj.label) ||
+    (typeof obj.title === "string" && obj.title) ||
     "";
 
   const description =
     (typeof obj.description === "string" && obj.description) ||
     (typeof obj.desc === "string" && obj.desc) ||
     (typeof obj.term === "string" && obj.term) ||
+    (typeof obj.label === "string" && obj.label) ||
+    (typeof obj.explanation === "string" && obj.explanation) ||
     "";
 
-  if (!code || !description) return null;
-  return { code, description };
+  if (!code && !compactCode && !label && !description) return null;
+
+  return {
+    code: code || undefined,
+    compact_code: compactCode || undefined,
+    label: label || undefined,
+    description: description || label || code || compactCode || "—",
+  };
 }
 
 export function useICDSearch(query: string, options?: { limit?: number }) {
@@ -107,9 +140,13 @@ export function useICDSearch(query: string, options?: { limit?: number }) {
           });
         }
 
-        const arr = Array.isArray(json) ? json : [];
+        if (process.env.NODE_ENV !== "production") {
+          console.debug("icd10 search response shape", json);
+        }
 
-        const normalized = arr
+        const items = extractICDItems(json);
+
+        const normalized = items
           .map(normalizeICDResult)
           .filter((x): x is ICD10SearchResult => Boolean(x))
           .slice(0, limit);

@@ -44,19 +44,35 @@ function normalizeICD10Item(item: unknown): ICD10Option | null {
   const obj = item as Record<string, unknown>;
   const code =
     (typeof obj.code === "string" && obj.code.trim()) ||
+    (typeof obj.compact_code === "string" && obj.compact_code.trim()) ||
     (typeof obj.icd === "string" && obj.icd.trim()) ||
     (typeof obj.icd10 === "string" && obj.icd10.trim()) ||
     (typeof obj.icd_code === "string" && obj.icd_code.trim()) ||
+    "";
+
+  const compactCode =
+    (typeof obj.compact_code === "string" && obj.compact_code.trim()) ||
+    (typeof obj.icd_compact === "string" && obj.icd_compact.trim()) ||
+    "";
+
+  const label =
+    (typeof obj.label === "string" && obj.label.trim()) ||
+    (typeof obj.title === "string" && obj.title.trim()) ||
     "";
 
   const description =
     (typeof obj.description === "string" && obj.description.trim()) ||
     (typeof obj.desc === "string" && obj.desc.trim()) ||
     (typeof obj.term === "string" && obj.term.trim()) ||
+    (typeof obj.label === "string" && obj.label.trim()) ||
+    (typeof obj.explanation === "string" && obj.explanation.trim()) ||
     "";
 
-  if (!code || !description) return null;
-  return { code, description };
+  if (!code && !compactCode && !label && !description) return null;
+  return {
+    code: code || compactCode || label || "—",
+    description: description || label || code || compactCode || "—",
+  };
 }
 
 function getSearchArray(payload: unknown): unknown[] {
@@ -68,6 +84,7 @@ function getSearchArray(payload: unknown): unknown[] {
     if (Array.isArray(record.results)) return record.results;
     if (Array.isArray(record.items)) return record.items;
     if (Array.isArray(record.data)) return record.data;
+    return [record];
   }
 
   return [];
@@ -158,6 +175,10 @@ async function queryICD10(q: string, signal: AbortSignal): Promise<ICD10Option[]
         retries: 1,
       });
 
+      if (process.env.NODE_ENV !== "production") {
+        console.debug("icd10 search response shape", directPayload);
+      }
+
       return getSearchArray(directPayload)
         .map(normalizeICD10Item)
         .filter((item): item is ICD10Option => Boolean(item));
@@ -177,6 +198,10 @@ async function queryICD10(q: string, signal: AbortSignal): Promise<ICD10Option[]
       retries: 1,
     }
   );
+
+  if (process.env.NODE_ENV !== "production") {
+    console.debug("icd10 search response shape", proxyPayload);
+  }
 
   return getSearchArray(proxyPayload)
     .map(normalizeICD10Item)

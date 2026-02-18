@@ -262,21 +262,25 @@ export default function Home() {
                   </span>
                 </div>
                 <div className="grid grid-cols-1 gap-3">
-                  {results.map((item, idx) => (
-                    <ICDResultCard
-                      key={`${item.code}-${item.description}`}
-                      code={item.code}
-                      diagnosisName={item.description}
-                      shortDescription={trimText(item.description)}
-                      copied={copiedCode === item.code}
-                      isSelected={selectedCode === item.code}
-                      isFavorite={favoriteCodes.includes(item.code)}
-                      onCopy={handleCopy}
-                      onSelect={handleSelect}
-                      onToggleFavorite={handleToggleFavorite}
-                      index={idx}
-                    />
-                  ))}
+                  {results.map((item, idx) => {
+                    const displayCode = item.code ?? item.compact_code ?? item.label ?? "—";
+
+                    return (
+                      <ICDResultCard
+                        key={`${displayCode}-${item.description}-${idx}`}
+                        code={displayCode}
+                        diagnosisName={item.description}
+                        shortDescription={trimText(item.description)}
+                        copied={copiedCode === displayCode}
+                        isSelected={selectedCode === displayCode}
+                        isFavorite={favoriteCodes.includes(displayCode)}
+                        onCopy={handleCopy}
+                        onSelect={handleSelect}
+                        onToggleFavorite={handleToggleFavorite}
+                        index={idx}
+                      />
+                    );
+                  })}
                 </div>
               </motion.div>
             )}
