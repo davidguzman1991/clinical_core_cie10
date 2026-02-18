@@ -1,4 +1,5 @@
-export const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
+export const API_BASE_URL =
+  process.env.NEXT_PUBLIC_API_BASE_URL ?? process.env.NEXT_PUBLIC_API_URL;
 
 function normalizeBaseUrl(raw: string | undefined): string | null {
   if (!raw) return null;
@@ -52,7 +53,9 @@ export async function apiFetch<T = unknown>(
 ): Promise<T> {
   const requestUrl = buildUrl(endpoint);
   if (!requestUrl) {
-    throw new Error("NEXT_PUBLIC_API_BASE_URL is not configured.");
+    throw new Error(
+      "NEXT_PUBLIC_API_BASE_URL or NEXT_PUBLIC_API_URL is not configured."
+    );
   }
 
   console.info(`[API] Request endpoint: ${requestUrl}`);

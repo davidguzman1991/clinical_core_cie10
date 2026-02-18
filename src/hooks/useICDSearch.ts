@@ -106,7 +106,7 @@ export function useICDSearch(query: string, options?: { limit?: number }) {
         const directUrl = buildUrl("/clinical/icd10/search", { q: trimmed });
         if (!directUrl) {
           throw new Error(
-            "Falta configurar NEXT_PUBLIC_API_BASE_URL. Asegúrate de tener .env.local (con punto) en el root y reinicia el dev server."
+            "Falta configurar NEXT_PUBLIC_API_BASE_URL o NEXT_PUBLIC_API_URL. Asegúrate de tener .env.local (con punto) en el root y reinicia el dev server."
           );
         }
 
