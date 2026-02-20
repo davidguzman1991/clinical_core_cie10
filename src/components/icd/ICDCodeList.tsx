@@ -1,9 +1,12 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { Copy, Scissors } from "lucide-react";
 
 import type { ICDCodeDetail } from "./ICDChapterGrid";
+
+const PAGE_SIZE = 20;
 
 type ICDCodeListProps = {
   items: ICDCodeDetail[];
@@ -12,9 +15,21 @@ type ICDCodeListProps = {
 };
 
 export default function ICDCodeList({ items, onCopyFull, onCopyCode }: ICDCodeListProps) {
+  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
+
+  useEffect(() => {
+    setVisibleCount(PAGE_SIZE);
+  }, [items]);
+
+  const visibleResults = items.slice(0, visibleCount);
+
   return (
     <div className="space-y-2">
-      {items.map((item, index) => (
+      <p className="mb-2 text-sm text-gray-400">
+        Mostrando {visibleResults.length} de {items.length} resultados
+      </p>
+
+      {visibleResults.map((item, index) => (
         <motion.div
           key={item.code}
           initial={{ opacity: 0, y: 8 }}
@@ -46,6 +61,16 @@ export default function ICDCodeList({ items, onCopyFull, onCopyCode }: ICDCodeLi
           </div>
         </motion.div>
       ))}
+
+      {items.length > visibleCount && (
+        <button
+          type="button"
+          onClick={() => setVisibleCount((prev) => prev + PAGE_SIZE)}
+          className="mt-4 w-full rounded-lg bg-teal-600 py-2 transition hover:bg-teal-500"
+        >
+          Mostrar más
+        </button>
+      )}
     </div>
   );
 }
