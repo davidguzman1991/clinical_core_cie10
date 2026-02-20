@@ -1,19 +1,84 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import { ChevronLeft } from "lucide-react";
 
 import { useToast } from "@/components/ui/use-toast";
+import { buildUrl, fetchJson, isNetworkLikeError, toUserFacingApiError } from "@/lib/api";
 
-import ICDChapterGrid, { type ICDChapter, type ICDCodeDetail, type ICDSubcategory } from "./ICDChapterGrid";
+import ICDChapterGrid, { type ICDChapter, type ICDSubcategory } from "./ICDChapterGrid";
 import ICDCodeList from "./ICDCodeList";
+import ICDManualSearch, { type ManualICDResult } from "./ICDManualSearch";
 import ICDSubcategoryList from "./ICDSubcategoryList";
+
+const MANUAL_DEFAULT_LIMIT = 20;
+const MANUAL_LIMIT_STEP = 20;
+const CODE_QUERY_PATTERN = /^[A-Z]\d{1,2}(?:\.\d{0,4})?$/i;
+
+type ManualSearchResponse = {
+  results?: unknown[];
+  total?: number;
+  count?: number;
+};
+
+function extractICDItems(data: unknown): unknown[] {
+  if (Array.isArray(data)) return data;
+
+  if (data && typeof data === "object") {
+    const record = data as Record<string, unknown>;
+    if (Array.isArray(record.results)) return record.results;
+    if (Array.isArray(record.items)) return record.items;
+    return [record];
+  }
+
+  return [];
+}
+
+function normalizeICDResult(item: unknown): ManualICDResult | null {
+  if (!item || typeof item !== "object") return null;
+  const obj = item as Record<string, unknown>;
+
+  const code =
+    (typeof obj.code === "string" && obj.code) ||
+    (typeof obj.compact_code === "string" && obj.compact_code) ||
+    (typeof obj.icd === "string" && obj.icd) ||
+    (typeof obj.icd10 === "string" && obj.icd10) ||
+    (typeof obj.icd_code === "string" && obj.icd_code) ||
+    "";
+
+  const description =
+    (typeof obj.description === "string" && obj.description) ||
+    (typeof obj.desc === "string" && obj.desc) ||
+    (typeof obj.term === "string" && obj.term) ||
+    (typeof obj.label === "string" && obj.label) ||
+    "";
+
+  if (!code && !description) return null;
+
+  return {
+    code: code || "—",
+    description: description || code || "—",
+  };
+}
+
+function extractTotal(data: unknown, fallback: number) {
+  if (!data || typeof data !== "object") return fallback;
+  const record = data as Record<string, unknown>;
+
+  const total =
+    (typeof record.total === "number" && record.total) ||
+    (typeof record.count === "number" && record.count) ||
+    (typeof record.total_results === "number" && record.total_results) ||
+    0;
+
+  return total > 0 ? total : fallback;
+}
 
 const ICD_CHAPTERS_MVP: ICDChapter[] = [
   {
     range: "A00-B99",
-    title: "Enfermedades infecciosas",
+    title: "Infecciosas",
     subcategories: [
       {
         code: "A09",
@@ -227,7 +292,7 @@ const ICD_CHAPTERS_MVP: ICDChapter[] = [
   },
   {
     range: "Z00-Z99",
-    title: "Factores que influyen",
+    title: "Factores",
     subcategories: [
       {
         code: "Z00",
@@ -251,10 +316,139 @@ const ICD_CHAPTERS_MVP: ICDChapter[] = [
 
 export default function ICDNavigator() {
   const { toast } = useToast();
+  const manualAbortRef = useRef<AbortController | null>(null);
 
   const [selectedChapter, setSelectedChapter] = useState<ICDChapter | null>(null);
   const [selectedSubcategory, setSelectedSubcategory] = useState<ICDSubcategory | null>(null);
   const [subcategoryQuery, setSubcategoryQuery] = useState("");
+  const [manualQuery, setManualQuery] = useState("");
+  const [manualResults, setManualResults] = useState<ManualICDResult[]>([]);
+  const [manualLimit, setManualLimit] = useState(MANUAL_DEFAULT_LIMIT);
+  const [manualTotal, setManualTotal] = useState(0);
+  const [manualLoading, setManualLoading] = useState(false);
+  const [manualError, setManualError] = useState<string | null>(null);
+  const [debouncedManualQuery, setDebouncedManualQuery] = useState("");
+
+  const hasManualQuery = manualQuery.trim().length > 0;
+
+  useEffect(() => {
+    const handle = window.setTimeout(() => {
+      setDebouncedManualQuery(manualQuery.trim());
+    }, 300);
+
+    return () => window.clearTimeout(handle);
+  }, [manualQuery]);
+
+  useEffect(() => {
+    setManualLimit(MANUAL_DEFAULT_LIMIT);
+  }, [debouncedManualQuery]);
+
+  useEffect(() => {
+    const searchText = debouncedManualQuery.trim();
+
+    if (!searchText) {
+      manualAbortRef.current?.abort();
+      manualAbortRef.current = null;
+      setManualResults([]);
+      setManualTotal(0);
+      setManualLoading(false);
+      setManualError(null);
+      return;
+    }
+
+    const controller = new AbortController();
+    manualAbortRef.current?.abort();
+    manualAbortRef.current = controller;
+
+    const isCodeLike = CODE_QUERY_PATTERN.test(searchText.replace(/\s+/g, ""));
+
+    const requestParams = isCodeLike
+      ? { code: searchText.replace(/\s+/g, ""), limit: manualLimit }
+      : { description_normalized: searchText, limit: manualLimit };
+
+    const run = async () => {
+      setManualLoading(true);
+      setManualError(null);
+
+      try {
+        const primaryUrl = buildUrl("/clinical/icd10/search", requestParams);
+        if (!primaryUrl) {
+          throw new Error(
+            "Falta configurar NEXT_PUBLIC_API_BASE_URL o NEXT_PUBLIC_API_URL para usar búsqueda manual."
+          );
+        }
+
+        let json: unknown;
+
+        try {
+          json = await fetchJson<ManualSearchResponse>(primaryUrl, {
+            signal: controller.signal,
+            timeoutMs: 7000,
+            retries: 1,
+          });
+        } catch (error) {
+          if (!isNetworkLikeError(error)) {
+            throw error;
+          }
+
+          const proxyQuery = new URLSearchParams(
+            Object.entries(requestParams).map(([key, value]) => [key, String(value)])
+          );
+
+          json = await fetchJson<ManualSearchResponse>(`/api/icd10/search?${proxyQuery.toString()}`, {
+            signal: controller.signal,
+            timeoutMs: 9000,
+            retries: 1,
+          });
+        }
+
+        let normalized = extractICDItems(json)
+          .map(normalizeICDResult)
+          .filter((item): item is ManualICDResult => Boolean(item));
+
+        if (normalized.length === 0) {
+          const fallbackParams = { q: searchText, limit: manualLimit };
+          const fallbackUrl = buildUrl("/clinical/icd10/search", fallbackParams);
+
+          if (fallbackUrl) {
+            const fallbackJson = await fetchJson<ManualSearchResponse>(fallbackUrl, {
+              signal: controller.signal,
+              timeoutMs: 7000,
+              retries: 1,
+            });
+
+            normalized = extractICDItems(fallbackJson)
+              .map(normalizeICDResult)
+              .filter((item): item is ManualICDResult => Boolean(item));
+
+            json = fallbackJson;
+          }
+        }
+
+        const total = extractTotal(json, normalized.length);
+
+        setManualResults(normalized.slice(0, manualLimit));
+        setManualTotal(Math.max(total, normalized.length));
+        setManualLoading(false);
+      } catch (error) {
+        if ((error as { name?: string }).name === "AbortError") return;
+        setManualResults([]);
+        setManualTotal(0);
+        setManualLoading(false);
+        setManualError(toUserFacingApiError(error));
+      }
+    };
+
+    void run();
+
+    return () => {
+      controller.abort();
+    };
+  }, [debouncedManualQuery, manualLimit]);
+
+  useEffect(() => {
+    return () => manualAbortRef.current?.abort();
+  }, []);
 
   const filteredSubcategories = useMemo(() => {
     if (!selectedChapter) return [];
@@ -278,7 +472,7 @@ export default function ICDNavigator() {
     }
   };
 
-  const handleCopyFull = async (item: ICDCodeDetail) => {
+  const handleCopyFull = async (item: { code: string; description: string }) => {
     try {
       await navigator.clipboard.writeText(`${item.code} - ${item.description}`);
       toast({ title: "Copiado al portapapeles", description: `${item.code} - ${item.description}` });
@@ -291,7 +485,7 @@ export default function ICDNavigator() {
     }
   };
 
-  const handleCopyCode = async (item: ICDCodeDetail) => {
+  const handleCopyCode = async (item: { code: string; description: string }) => {
     try {
       await navigator.clipboard.writeText(item.code);
       toast({ title: "Copiado al portapapeles", description: item.code });
@@ -307,7 +501,7 @@ export default function ICDNavigator() {
   const breadcrumb = [
     "CIE-10",
     selectedChapter?.title,
-    selectedSubcategory ? `${selectedSubcategory.code} ${selectedSubcategory.description}` : null,
+    selectedSubcategory?.code,
   ].filter(Boolean) as string[];
 
   return (
@@ -335,13 +529,30 @@ export default function ICDNavigator() {
         )}
       </div>
 
-      {(selectedChapter || selectedSubcategory) && (
+      <ICDManualSearch
+        query={manualQuery}
+        onQueryChange={setManualQuery}
+        loading={manualLoading}
+        error={manualError}
+        results={manualResults}
+        total={manualTotal}
+        onCopyFull={handleCopyFull}
+        onCopyCodeOnly={handleCopyCode}
+        onLoadMore={() => setManualLimit((prev) => prev + MANUAL_LIMIT_STEP)}
+        canLoadMore={!manualLoading && manualResults.length > 0 && manualResults.length < manualTotal}
+      />
+
+      <div className="my-4 h-px w-full bg-gradient-to-r from-transparent via-border to-transparent" />
+
+      {!hasManualQuery && (selectedChapter || selectedSubcategory) && (
         <p className="mb-3 text-xs text-muted-foreground">{breadcrumb.join(" > ")}</p>
       )}
 
-      {!selectedChapter && <ICDChapterGrid chapters={ICD_CHAPTERS_MVP} onSelect={setSelectedChapter} />}
+      {!hasManualQuery && !selectedChapter && (
+        <ICDChapterGrid chapters={ICD_CHAPTERS_MVP} onSelect={setSelectedChapter} />
+      )}
 
-      {selectedChapter && !selectedSubcategory && (
+      {!hasManualQuery && selectedChapter && !selectedSubcategory && (
         <ICDSubcategoryList
           query={subcategoryQuery}
           onQueryChange={setSubcategoryQuery}
@@ -350,7 +561,7 @@ export default function ICDNavigator() {
         />
       )}
 
-      {selectedChapter && selectedSubcategory && (
+      {!hasManualQuery && selectedChapter && selectedSubcategory && (
         <ICDCodeList
           items={selectedSubcategory.codes}
           onCopyFull={handleCopyFull}
