@@ -1,7 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { Copy, Check, Star, FileText, ChevronRight } from "lucide-react";
+import { Copy, Check, Star, FileText, ChevronRight, Scissors } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 
@@ -12,7 +12,8 @@ type ICDResultCardProps = {
   copied: boolean;
   isFavorite: boolean;
   isSelected: boolean;
-  onCopy: (code: string) => void;
+  onCopy: (code: string, diagnosisName: string) => void;
+  onCopyCodeOnly: (code: string) => void;
   onSelect: (code: string) => void;
   onToggleFavorite: (code: string) => void;
   index?: number;
@@ -26,6 +27,7 @@ export default function ICDResultCard({
   isFavorite,
   isSelected,
   onCopy,
+  onCopyCodeOnly,
   onSelect,
   onToggleFavorite,
   index = 0,
@@ -88,7 +90,7 @@ export default function ICDResultCard({
           <motion.button
             type="button"
             whileTap={{ scale: 0.95 }}
-            onClick={() => onCopy(code)}
+            onClick={() => onCopy(code, diagnosisName)}
             aria-live="polite"
             className={cn(
               "flex h-10 flex-1 items-center justify-center gap-2 rounded-xl border text-sm font-medium transition-all",
@@ -102,7 +104,17 @@ export default function ICDResultCard({
             ) : (
               <Copy className="h-4 w-4" />
             )}
-            <span>{copied ? "Copiado" : "Copiar"}</span>
+            <span>{copied ? "Copiado" : "Copiar texto"}</span>
+          </motion.button>
+
+          <motion.button
+            type="button"
+            whileTap={{ scale: 0.95 }}
+            onClick={() => onCopyCodeOnly(code)}
+            aria-label="Copiar solo código"
+            className="flex h-10 w-10 items-center justify-center rounded-xl border border-border bg-card text-muted-foreground transition-all hover:border-turquoise-300 hover:bg-turquoise-50/50 hover:text-foreground dark:hover:bg-turquoise-900/20"
+          >
+            <Scissors className="h-4 w-4" />
           </motion.button>
 
           <motion.button

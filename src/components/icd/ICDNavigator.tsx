@@ -1,0 +1,362 @@
+"use client";
+
+import { useMemo, useState } from "react";
+import { motion } from "framer-motion";
+import { ChevronLeft } from "lucide-react";
+
+import { useToast } from "@/components/ui/use-toast";
+
+import ICDChapterGrid, { type ICDChapter, type ICDCodeDetail, type ICDSubcategory } from "./ICDChapterGrid";
+import ICDCodeList from "./ICDCodeList";
+import ICDSubcategoryList from "./ICDSubcategoryList";
+
+const ICD_CHAPTERS_MVP: ICDChapter[] = [
+  {
+    range: "A00-B99",
+    title: "Enfermedades infecciosas",
+    subcategories: [
+      {
+        code: "A09",
+        description: "Gastroenteritis y colitis de origen infeccioso",
+        codes: [
+          { code: "A09.0", description: "Gastroenteritis infecciosa no especificada" },
+          { code: "A09.9", description: "Diarrea y gastroenteritis de presunto origen infeccioso" },
+        ],
+      },
+      {
+        code: "B20",
+        description: "Enfermedad por VIH",
+        codes: [
+          { code: "B20.0", description: "Enfermedad por VIH con infección oportunista" },
+          { code: "B20.9", description: "Enfermedad por VIH sin otra especificación" },
+        ],
+      },
+    ],
+  },
+  {
+    range: "C00-D48",
+    title: "Neoplasias",
+    subcategories: [
+      {
+        code: "C34",
+        description: "Neoplasia maligna de bronquios y pulmón",
+        codes: [
+          { code: "C34.1", description: "Lóbulo superior, bronquio o pulmón" },
+          { code: "C34.9", description: "Bronquio o pulmón, parte no especificada" },
+        ],
+      },
+      {
+        code: "D12",
+        description: "Neoplasia benigna de colon, recto y ano",
+        codes: [
+          { code: "D12.6", description: "Neoplasia benigna de colon, no especificada" },
+          { code: "D12.8", description: "Neoplasia benigna de recto" },
+        ],
+      },
+    ],
+  },
+  {
+    range: "E00-E90",
+    title: "Endocrinas",
+    subcategories: [
+      {
+        code: "E10",
+        description: "Diabetes mellitus tipo 1",
+        codes: [
+          { code: "E10.9", description: "Diabetes mellitus tipo 1 sin complicaciones" },
+          { code: "E10.65", description: "Diabetes mellitus tipo 1 con hiperglucemia" },
+        ],
+      },
+      {
+        code: "E11",
+        description: "Diabetes mellitus tipo 2",
+        codes: [
+          { code: "E11.7", description: "Diabetes mellitus tipo 2 con complicaciones" },
+          { code: "E11.9", description: "Diabetes mellitus tipo 2 sin complicaciones" },
+        ],
+      },
+      {
+        code: "E66",
+        description: "Obesidad",
+        codes: [
+          { code: "E66.0", description: "Obesidad debida a exceso de calorías" },
+          { code: "E66.9", description: "Obesidad no especificada" },
+        ],
+      },
+      {
+        code: "E78",
+        description: "Trastornos del metabolismo de las lipoproteínas",
+        codes: [
+          { code: "E78.0", description: "Hipercolesterolemia pura" },
+          { code: "E78.5", description: "Hiperlipidemia no especificada" },
+        ],
+      },
+    ],
+  },
+  {
+    range: "I00-I99",
+    title: "Cardiovasculares",
+    subcategories: [
+      {
+        code: "I10",
+        description: "Hipertensión esencial",
+        codes: [
+          { code: "I10.0", description: "Hipertensión esencial no complicada" },
+          { code: "I10.9", description: "Hipertensión esencial, no especificada" },
+        ],
+      },
+      {
+        code: "I25",
+        description: "Cardiopatía isquémica crónica",
+        codes: [
+          { code: "I25.1", description: "Aterosclerosis coronaria" },
+          { code: "I25.9", description: "Cardiopatía isquémica crónica no especificada" },
+        ],
+      },
+    ],
+  },
+  {
+    range: "J00-J99",
+    title: "Respiratorias",
+    subcategories: [
+      {
+        code: "J18",
+        description: "Neumonía",
+        codes: [
+          { code: "J18.0", description: "Bronconeumonía no especificada" },
+          { code: "J18.9", description: "Neumonía no especificada" },
+        ],
+      },
+      {
+        code: "J45",
+        description: "Asma",
+        codes: [
+          { code: "J45.9", description: "Asma no especificada" },
+          { code: "J45.5", description: "Asma grave persistente" },
+        ],
+      },
+    ],
+  },
+  {
+    range: "K00-K93",
+    title: "Digestivas",
+    subcategories: [
+      {
+        code: "K29",
+        description: "Gastritis y duodenitis",
+        codes: [
+          { code: "K29.7", description: "Gastritis, no especificada" },
+          { code: "K29.9", description: "Gastroduodenitis, no especificada" },
+        ],
+      },
+      {
+        code: "K76",
+        description: "Otras enfermedades del hígado",
+        codes: [
+          { code: "K76.0", description: "Hígado graso, no clasificado en otra parte" },
+          { code: "K76.9", description: "Enfermedad del hígado no especificada" },
+        ],
+      },
+    ],
+  },
+  {
+    range: "N00-N99",
+    title: "Genitourinarias",
+    subcategories: [
+      {
+        code: "N18",
+        description: "Enfermedad renal crónica",
+        codes: [
+          { code: "N18.3", description: "Enfermedad renal crónica, estadio 3" },
+          { code: "N18.9", description: "Enfermedad renal crónica, no especificada" },
+        ],
+      },
+      {
+        code: "N39",
+        description: "Otros trastornos urinarios",
+        codes: [
+          { code: "N39.0", description: "Infección urinaria, sitio no especificado" },
+          { code: "N39.9", description: "Trastorno urinario no especificado" },
+        ],
+      },
+    ],
+  },
+  {
+    range: "R00-R99",
+    title: "Síntomas y signos",
+    subcategories: [
+      {
+        code: "R05",
+        description: "Tos",
+        codes: [
+          { code: "R05.0", description: "Tos aguda" },
+          { code: "R05.9", description: "Tos no especificada" },
+        ],
+      },
+      {
+        code: "R50",
+        description: "Fiebre de origen desconocido",
+        codes: [
+          { code: "R50.8", description: "Otras fiebres especificadas" },
+          { code: "R50.9", description: "Fiebre no especificada" },
+        ],
+      },
+    ],
+  },
+  {
+    range: "S00-T98",
+    title: "Traumatismos",
+    subcategories: [
+      {
+        code: "S06",
+        description: "Lesión intracraneal",
+        codes: [
+          { code: "S06.0", description: "Conmoción cerebral" },
+          { code: "S06.9", description: "Lesión intracraneal no especificada" },
+        ],
+      },
+      {
+        code: "T14",
+        description: "Traumatismo de región no especificada",
+        codes: [
+          { code: "T14.1", description: "Herida abierta de región no especificada" },
+          { code: "T14.9", description: "Traumatismo no especificado" },
+        ],
+      },
+    ],
+  },
+  {
+    range: "Z00-Z99",
+    title: "Factores que influyen",
+    subcategories: [
+      {
+        code: "Z00",
+        description: "Examen general",
+        codes: [
+          { code: "Z00.0", description: "Examen general de salud" },
+          { code: "Z00.8", description: "Otros exámenes generales" },
+        ],
+      },
+      {
+        code: "Z79",
+        description: "Uso prolongado de medicamentos",
+        codes: [
+          { code: "Z79.4", description: "Uso prolongado de insulina" },
+          { code: "Z79.899", description: "Uso prolongado de otros medicamentos" },
+        ],
+      },
+    ],
+  },
+];
+
+export default function ICDNavigator() {
+  const { toast } = useToast();
+
+  const [selectedChapter, setSelectedChapter] = useState<ICDChapter | null>(null);
+  const [selectedSubcategory, setSelectedSubcategory] = useState<ICDSubcategory | null>(null);
+  const [subcategoryQuery, setSubcategoryQuery] = useState("");
+
+  const filteredSubcategories = useMemo(() => {
+    if (!selectedChapter) return [];
+
+    const q = subcategoryQuery.trim().toLowerCase();
+    if (!q) return selectedChapter.subcategories;
+
+    return selectedChapter.subcategories.filter((item) => {
+      return item.code.toLowerCase().includes(q) || item.description.toLowerCase().includes(q);
+    });
+  }, [selectedChapter, subcategoryQuery]);
+
+  const handleBack = () => {
+    if (selectedSubcategory) {
+      setSelectedSubcategory(null);
+      return;
+    }
+    if (selectedChapter) {
+      setSelectedChapter(null);
+      setSubcategoryQuery("");
+    }
+  };
+
+  const handleCopyFull = async (item: ICDCodeDetail) => {
+    try {
+      await navigator.clipboard.writeText(`${item.code} - ${item.description}`);
+      toast({ title: "Copiado al portapapeles", description: `${item.code} - ${item.description}` });
+    } catch {
+      toast({
+        title: "No se pudo copiar",
+        description: "Intenta copiar manualmente el contenido.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleCopyCode = async (item: ICDCodeDetail) => {
+    try {
+      await navigator.clipboard.writeText(item.code);
+      toast({ title: "Copiado al portapapeles", description: item.code });
+    } catch {
+      toast({
+        title: "No se pudo copiar",
+        description: "Intenta copiar manualmente el código.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const breadcrumb = [
+    "CIE-10",
+    selectedChapter?.title,
+    selectedSubcategory ? `${selectedSubcategory.code} ${selectedSubcategory.description}` : null,
+  ].filter(Boolean) as string[];
+
+  return (
+    <motion.section
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.25 }}
+      className="mx-auto mt-4 w-full max-w-2xl rounded-2xl border border-border bg-card/70 p-4 backdrop-blur-md"
+    >
+      <div className="mb-4 flex items-center justify-between gap-2">
+        <div>
+          <p className="text-xs uppercase tracking-wider text-turquoise-500">Modo CIE-10 Manual</p>
+          <h2 className="text-sm font-semibold text-foreground">Navegación estructurada por capítulos</h2>
+        </div>
+
+        {(selectedChapter || selectedSubcategory) && (
+          <button
+            type="button"
+            onClick={handleBack}
+            className="inline-flex h-9 items-center gap-1 rounded-lg border border-border bg-card px-3 text-xs font-medium text-foreground transition hover:border-turquoise-300 hover:text-turquoise-500"
+          >
+            <ChevronLeft className="h-3.5 w-3.5" />
+            Atrás
+          </button>
+        )}
+      </div>
+
+      {(selectedChapter || selectedSubcategory) && (
+        <p className="mb-3 text-xs text-muted-foreground">{breadcrumb.join(" > ")}</p>
+      )}
+
+      {!selectedChapter && <ICDChapterGrid chapters={ICD_CHAPTERS_MVP} onSelect={setSelectedChapter} />}
+
+      {selectedChapter && !selectedSubcategory && (
+        <ICDSubcategoryList
+          query={subcategoryQuery}
+          onQueryChange={setSubcategoryQuery}
+          items={filteredSubcategories}
+          onSelect={setSelectedSubcategory}
+        />
+      )}
+
+      {selectedChapter && selectedSubcategory && (
+        <ICDCodeList
+          items={selectedSubcategory.codes}
+          onCopyFull={handleCopyFull}
+          onCopyCode={handleCopyCode}
+        />
+      )}
+    </motion.section>
+  );
+}
