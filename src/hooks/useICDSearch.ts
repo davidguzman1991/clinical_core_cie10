@@ -74,8 +74,12 @@ function normalizeICDResult(item: unknown): ICD10SearchResult | null {
   };
 }
 
-export function useICDSearch(query: string, options?: { limit?: number }) {
+export function useICDSearch(
+  query: string,
+  options?: { limit?: number; debounceMs?: number }
+) {
   const limit = options?.limit ?? 20;
+  const debounceMs = options?.debounceMs ?? 400;
 
   const abortRef = useRef<AbortController | null>(null);
   const [state, setState] = useState<UseICDSearchState>({
@@ -150,12 +154,12 @@ export function useICDSearch(query: string, options?: { limit?: number }) {
           error: toUserFacingApiError(e),
         });
       }
-    }, 400);
+    }, debounceMs);
 
     return () => {
       window.clearTimeout(handle);
     };
-  }, [limit, shouldSearch, trimmed]);
+  }, [debounceMs, limit, shouldSearch, trimmed]);
 
   useEffect(() => {
     return () => abortRef.current?.abort();

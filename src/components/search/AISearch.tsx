@@ -25,17 +25,40 @@ function trimText(value: string, maxLength = 115) {
 
 export default function AISearch() {
   const [query, setQuery] = useState("");
+  const [debouncedQuery, setDebouncedQuery] = useState("");
+  const [isTyping, setIsTyping] = useState(false);
   const [copiedCode, setCopiedCode] = useState<string | null>(null);
   const [selectedCode, setSelectedCode] = useState<string | null>(null);
   const [favoriteCodes, setFavoriteCodes] = useState<string[]>([]);
   const [recentSearches, setRecentSearches] = useState<string[]>([]);
 
   const { toast } = useToast();
-  const { results, loading, error } = useICDSearch(query, { limit: 20 });
+  const { results, loading, error } = useICDSearch(debouncedQuery, {
+    limit: 20,
+    debounceMs: 0,
+  });
   const trimmedQuery = query.trim();
+  const debouncedTrimmedQuery = debouncedQuery.trim();
 
   const noResultsToastQueryRef = useRef<string | null>(null);
   const errorToastRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (!query || query.trim().length < 3) {
+      setDebouncedQuery("");
+      setIsTyping(false);
+      return;
+    }
+
+    setIsTyping(true);
+
+    const handler = window.setTimeout(() => {
+      setDebouncedQuery(query.trim());
+      setIsTyping(false);
+    }, 500);
+
+    return () => window.clearTimeout(handler);
+  }, [query]);
 
   useEffect(() => {
     try {
@@ -75,19 +98,19 @@ export default function AISearch() {
   }, [copiedCode]);
 
   useEffect(() => {
-    if (trimmedQuery.length === 0) {
+    if (debouncedTrimmedQuery.length < 3) {
       noResultsToastQueryRef.current = null;
       return;
     }
-    if (loading || error || results.length > 0) return;
-    if (noResultsToastQueryRef.current === trimmedQuery) return;
+    if (isTyping || loading || error || results.length > 0) return;
+    if (noResultsToastQueryRef.current === debouncedTrimmedQuery) return;
 
-    noResultsToastQueryRef.current = trimmedQuery;
+    noResultsToastQueryRef.current = debouncedTrimmedQuery;
     toast({
       title: "Sin resultados",
-      description: `No encontramos CIE-10 para "${trimmedQuery}".`,
+      description: `No encontramos CIE-10 para "${debouncedTrimmedQuery}".`,
     });
-  }, [error, loading, results.length, toast, trimmedQuery]);
+  }, [debouncedTrimmedQuery, error, isTyping, loading, results.length, toast]);
 
   useEffect(() => {
     if (!error) {
@@ -172,7 +195,12 @@ export default function AISearch() {
 
   const hasResults = results.length > 0;
   const showEmptyState = !loading && trimmedQuery.length === 0 && !hasResults;
-  const showNoResults = !loading && trimmedQuery.length > 0 && !error && !hasResults;
+  const showNoResults =
+    !isTyping &&
+    !loading &&
+    debouncedTrimmedQuery.length >= 3 &&
+    !error &&
+    !hasResults;
 
   return (
     <>
@@ -181,7 +209,7 @@ export default function AISearch() {
           value={query}
           onChange={setQuery}
           onClear={() => setQuery("")}
-          loading={loading}
+          loading={loading || isTyping}
           placeholder="Escribe diagnóstico, síntoma o palabra clave…"
         />
       </div>
@@ -285,7 +313,7 @@ export default function AISearch() {
               <SearchIcon className="mb-3 h-10 w-10 text-muted-foreground/40" />
               <p className="text-sm font-medium text-foreground">Sin resultados</p>
               <p className="mt-1 text-xs text-muted-foreground">
-                No encontramos CIE-10 para &quot;{trimmedQuery}&quot;. Intenta con otro término.
+                No encontramos CIE-10 para &quot;{debouncedTrimmedQuery}&quot;. Intenta con otro término.
               </p>
             </motion.div>
           )}
