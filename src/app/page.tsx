@@ -4,14 +4,20 @@ import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 
 import HeroSection from "@/components/clinical/HeroSection";
-import BottomNav from "@/components/clinical/BottomNav";
+import BottomNav, { type BottomTabId } from "@/components/clinical/BottomNav";
 import ThemeToggle from "@/components/clinical/ThemeToggle";
 import ICDNavigator from "@/components/icd/ICDNavigator";
 import AISearch from "@/components/search/AISearch";
 
 export default function Home() {
   const [mode, setMode] = useState<"ai" | "manual">("ai");
-  const [activeTab, setActiveTab] = useState("search");
+  const [activeTab, setActiveTab] = useState<BottomTabId>("search");
+  const [mobileAction, setMobileAction] = useState<{ tab: BottomTabId; nonce: number } | null>(null);
+
+  const handleBottomTabChange = (tab: BottomTabId) => {
+    setActiveTab(tab);
+    setMobileAction({ tab, nonce: Date.now() });
+  };
 
   return (
     <div className="relative min-h-screen bg-background text-foreground">
@@ -72,7 +78,11 @@ export default function Home() {
               exit={{ opacity: 0, x: 8 }}
               transition={{ duration: 0.22 }}
             >
-              <AISearch />
+              <AISearch
+                mobileActionTab={mobileAction?.tab}
+                mobileActionNonce={mobileAction?.nonce}
+                onMobileActionHandled={() => setMobileAction(null)}
+              />
             </motion.div>
           ) : (
             <motion.div
@@ -102,7 +112,7 @@ export default function Home() {
       </div>
 
       {/* Bottom navigation (mobile only) */}
-      <BottomNav activeTab={activeTab} onTabChange={setActiveTab} />
+      <BottomNav activeTab={activeTab} onTabChange={handleBottomTabChange} />
     </div>
   );
 }

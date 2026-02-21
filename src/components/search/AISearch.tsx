@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { AlertCircle, Clock, Search as SearchIcon, Sparkles, Star } from "lucide-react";
+import { AlertCircle, Clock, Search as SearchIcon, Sparkles, Star, X } from "lucide-react";
 
 import ICDResultCard from "@/components/clinical/ICDResultCard";
 import QuickExamples from "@/components/clinical/QuickExamples";
@@ -16,17 +16,26 @@ const FAVORITES_STORAGE_KEY = "clinical-core.favorite-icd10";
 const RECENT_SEARCHES_STORAGE_KEY = "clinical-core.recent-searches";
 const MAX_RECENT_SEARCHES = 8;
 
-function trimText(value: string, maxLength = 115) {
-  if (value.length <= maxLength) return value;
-  return `${value.slice(0, maxLength - 1).trimEnd()}...`;
-}
+type MobileActionTab = "search" | "favorites" | "history" | "ai" | "profile";
 
-export default function AISearch() {
+type AISearchProps = {
+  mobileActionTab?: MobileActionTab;
+  mobileActionNonce?: number;
+  onMobileActionHandled?: () => void;
+};
+
+export default function AISearch({
+  mobileActionTab,
+  mobileActionNonce,
+  onMobileActionHandled,
+}: AISearchProps) {
   const [query, setQuery] = useState("");
   const [searchMode, setSearchMode] = useState<"hybrid" | "literal">("hybrid");
   const [submittedQuery, setSubmittedQuery] = useState("");
   const [searchRequestKey, setSearchRequestKey] = useState(0);
   const [loading, setLoading] = useState(false);
+  const [showOnlyFavorites, setShowOnlyFavorites] = useState(false);
+  const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const [copiedCode, setCopiedCode] = useState<string | null>(null);
   const [selectedCode, setSelectedCode] = useState<string | null>(null);
   const [favoriteCodes, setFavoriteCodes] = useState<string[]>([]);
@@ -42,6 +51,7 @@ export default function AISearch() {
   const trimmedQuery = query.trim();
   const submittedTrimmedQuery = submittedQuery.trim();
 
+  const searchSectionRef = useRef<HTMLDivElement | null>(null);
   const noResultsToastQueryRef = useRef<string | null>(null);
   const errorToastRef = useRef<string | null>(null);
 
@@ -117,6 +127,37 @@ export default function AISearch() {
     });
   }, [error, toast]);
 
+  useEffect(() => {
+    if (!mobileActionTab) return;
+
+    if (mobileActionTab === "search") {
+      searchSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+
+    if (mobileActionTab === "favorites") {
+      setShowOnlyFavorites((prev) => {
+        const next = !prev;
+        toast({
+          title: next ? "Filtro de favoritos activo" : "Filtro de favoritos desactivado",
+          description: next
+            ? "Mostrando solo resultados marcados como favoritos."
+            : "Mostrando todos los resultados.",
+        });
+        return next;
+      });
+    }
+
+    if (mobileActionTab === "history") {
+      setIsHistoryOpen(true);
+    }
+
+    if (mobileActionTab === "ai") {
+      toast({ title: "IA Clínica", description: "Próximamente" });
+    }
+
+    onMobileActionHandled?.();
+  }, [mobileActionNonce, mobileActionTab, onMobileActionHandled, toast]);
+
   const pushRecentSearch = (value: string) => {
     const cleaned = value.trim();
     if (!cleaned) return;
@@ -139,23 +180,6 @@ export default function AISearch() {
       toast({
         title: "No se pudo copiar",
         description: "Intenta copiar manualmente el contenido.",
-        variant: "destructive",
-      });
-    }
-  };
-
-  const handleCopyCodeOnly = async (code: string) => {
-    try {
-      await navigator.clipboard.writeText(code);
-      setCopiedCode(code);
-      toast({
-        title: "Copiado al portapapeles",
-        description: code,
-      });
-    } catch {
-      toast({
-        title: "No se pudo copiar",
-        description: "Intenta copiar manualmente el código CIE-10.",
         variant: "destructive",
       });
     }
@@ -196,17 +220,26 @@ export default function AISearch() {
     });
   };
 
-  const hasResults = results.length > 0;
+  const displayedResults = showOnlyFavorites
+    ? results.filter((item) => {
+        const displayCode = item.code ?? item.compact_code ?? item.label ?? "—";
+        return favoriteCodes.includes(displayCode);
+      })
+    : results;
+
+  const hasResults = displayedResults.length > 0;
   const showEmptyState = !loading && trimmedQuery.length === 0 && !hasResults;
   const showNoResults =
     !loading &&
+    !showOnlyFavorites &&
     submittedTrimmedQuery.length >= 3 &&
     !error &&
     !hasResults;
+  const showFavoriteFilterEmpty = !loading && showOnlyFavorites && results.length > 0 && !hasResults;
 
   return (
     <>
-      <div className="mx-auto mt-2 w-full max-w-2xl px-1">
+      <div ref={searchSectionRef} className="mx-auto mt-2 w-full max-w-2xl px-1">
         <SearchInput
           value={query}
           onChange={setQuery}
@@ -262,6 +295,12 @@ export default function AISearch() {
             {loading ? "Buscando..." : "Buscar diagnóstico"}
           </Button>
         </div>
+
+        {showOnlyFavorites && (
+          <div className="mt-2 rounded-lg border border-amber-300/45 bg-amber-50/60 px-3 py-2 text-xs text-amber-700 dark:border-amber-900/40 dark:bg-amber-900/20 dark:text-amber-300">
+            Vista filtrada: mostrando solo favoritos.
+          </div>
+        )}
       </div>
 
       <AnimatePresence>
@@ -321,11 +360,11 @@ export default function AISearch() {
               <div className="mb-3 flex items-center gap-2 px-1">
                 <Sparkles className="h-3.5 w-3.5 text-turquoise-500" />
                 <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                  {results.length} resultado{results.length !== 1 ? "s" : ""}
+                  {displayedResults.length} resultado{displayedResults.length !== 1 ? "s" : ""}
                 </span>
               </div>
               <div className="grid grid-cols-1 gap-3">
-                {results.map((item, idx) => {
+                {displayedResults.map((item, idx) => {
                   const displayCode = item.code ?? item.compact_code ?? item.label ?? "—";
 
                   return (
@@ -333,12 +372,10 @@ export default function AISearch() {
                       key={`${displayCode}-${item.description}-${idx}`}
                       code={displayCode}
                       diagnosisName={item.description}
-                      shortDescription={trimText(item.description)}
                       copied={copiedCode === displayCode}
                       isSelected={selectedCode === displayCode}
                       isFavorite={favoriteCodes.includes(displayCode)}
                       onCopy={handleCopy}
-                      onCopyCodeOnly={handleCopyCodeOnly}
                       onSelect={handleSelect}
                       onToggleFavorite={handleToggleFavorite}
                       index={idx}
@@ -346,6 +383,23 @@ export default function AISearch() {
                   );
                 })}
               </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        <AnimatePresence>
+          {showFavoriteFilterEmpty && (
+            <motion.div
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0 }}
+              className="flex flex-col items-center rounded-2xl border border-border bg-card px-6 py-8 text-center"
+            >
+              <Star className="mb-2 h-8 w-8 text-amber-400" />
+              <p className="text-sm font-medium text-foreground">No hay favoritos en estos resultados</p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Marca diagnósticos con estrella para verlos aquí.
+              </p>
             </motion.div>
           )}
         </AnimatePresence>
@@ -405,6 +459,60 @@ export default function AISearch() {
           <QuickExamples onSelect={setQuery} />
         </>
       )}
+
+      <AnimatePresence>
+        {isHistoryOpen && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-end bg-black/35 p-3 sm:items-center sm:justify-center"
+            onClick={() => setIsHistoryOpen(false)}
+          >
+            <motion.div
+              initial={{ y: 28, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              exit={{ y: 24, opacity: 0 }}
+              transition={{ duration: 0.2 }}
+              onClick={(event) => event.stopPropagation()}
+              className="w-full max-w-md rounded-2xl border border-border bg-card p-4"
+            >
+              <div className="mb-3 flex items-center justify-between">
+                <p className="text-sm font-semibold text-foreground">Historial de búsquedas</p>
+                <button
+                  type="button"
+                  onClick={() => setIsHistoryOpen(false)}
+                  className="rounded-md p-1 text-muted-foreground transition hover:bg-muted hover:text-foreground"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+
+              {recentSearches.length === 0 ? (
+                <p className="rounded-lg border border-border px-3 py-5 text-center text-xs text-muted-foreground">
+                  Aún no hay búsquedas recientes.
+                </p>
+              ) : (
+                <div className="max-h-72 space-y-2 overflow-auto pr-1">
+                  {recentSearches.map((item) => (
+                    <button
+                      key={item}
+                      type="button"
+                      onClick={() => {
+                        setQuery(item);
+                        setIsHistoryOpen(false);
+                      }}
+                      className="w-full rounded-lg border border-border px-3 py-2 text-left text-sm text-foreground transition hover:border-turquoise-300 hover:bg-turquoise-50/40 dark:hover:bg-turquoise-900/20"
+                    >
+                      {item}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </>
   );
 }

@@ -3,12 +3,15 @@
 import { motion } from "framer-motion";
 import { Search, Star, Clock, Brain, User } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useTheme } from "@/hooks/useTheme";
 
 type NavItem = {
   label: string;
   icon: React.ReactNode;
-  id: string;
+  id: BottomTabId;
 };
+
+export type BottomTabId = "search" | "favorites" | "history" | "ai" | "profile";
 
 const NAV_ITEMS: NavItem[] = [
   { label: "Buscar", icon: <Search className="h-5 w-5" />, id: "search" },
@@ -19,11 +22,13 @@ const NAV_ITEMS: NavItem[] = [
 ];
 
 type BottomNavProps = {
-  activeTab: string;
-  onTabChange: (tab: string) => void;
+  activeTab: BottomTabId;
+  onTabChange: (tab: BottomTabId) => void;
 };
 
 export default function BottomNav({ activeTab, onTabChange }: BottomNavProps) {
+  const { toggleTheme } = useTheme();
+
   return (
     <motion.nav
       initial={{ y: 80 }}
@@ -39,7 +44,12 @@ export default function BottomNav({ activeTab, onTabChange }: BottomNavProps) {
             <motion.button
               key={item.id}
               type="button"
-              onClick={() => onTabChange(item.id)}
+              onClick={() => {
+                if (item.id === "profile") {
+                  toggleTheme();
+                }
+                onTabChange(item.id);
+              }}
               whileTap={{ scale: 0.9 }}
               className={cn(
                 "relative flex flex-col items-center gap-0.5 rounded-xl px-3 py-2 transition-colors",
@@ -59,6 +69,11 @@ export default function BottomNav({ activeTab, onTabChange }: BottomNavProps) {
               <span className="relative z-10 text-[10px] font-medium leading-none">
                 {item.label}
               </span>
+              {item.id === "ai" && (
+                <span className="relative z-10 mt-0.5 rounded-full bg-turquoise-500/15 px-1.5 py-0.5 text-[8px] font-semibold uppercase tracking-wide text-turquoise-500">
+                  Próx.
+                </span>
+              )}
             </motion.button>
           );
         })}
