@@ -8,6 +8,7 @@ type SearchInputProps = {
   value: string;
   onChange: (value: string) => void;
   onClear: () => void;
+  onSubmit?: () => void;
   placeholder: string;
   loading?: boolean;
   autoFocus?: boolean;
@@ -17,6 +18,7 @@ export default function SearchInput({
   value,
   onChange,
   onClear,
+  onSubmit,
   placeholder,
   loading = false,
   autoFocus = true,
@@ -85,6 +87,12 @@ export default function SearchInput({
             placeholder={placeholder}
             value={value}
             onChange={(e) => onChange(e.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === "Enter") {
+                event.preventDefault();
+                onSubmit?.();
+              }
+            }}
             onFocus={() => setIsFocused(true)}
             onBlur={() => setIsFocused(false)}
             className="flex-1 bg-transparent px-3 py-4 text-[16px] text-foreground placeholder:text-muted-foreground/60 outline-none"

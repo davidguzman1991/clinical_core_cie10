@@ -76,10 +76,11 @@ function normalizeICDResult(item: unknown): ICD10SearchResult | null {
 
 export function useICDSearch(
   query: string,
-  options?: { limit?: number; debounceMs?: number }
+  options?: { limit?: number; debounceMs?: number; requestKey?: number }
 ) {
   const limit = options?.limit ?? 20;
   const debounceMs = options?.debounceMs ?? 400;
+  const requestKey = options?.requestKey ?? 0;
 
   const abortRef = useRef<AbortController | null>(null);
   const [state, setState] = useState<UseICDSearchState>({
@@ -159,7 +160,7 @@ export function useICDSearch(
     return () => {
       window.clearTimeout(handle);
     };
-  }, [debounceMs, limit, shouldSearch, trimmed]);
+  }, [debounceMs, limit, requestKey, shouldSearch, trimmed]);
 
   useEffect(() => {
     return () => abortRef.current?.abort();

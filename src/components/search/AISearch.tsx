@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { AlertCircle, Clock, Search as SearchIcon, Sparkles, Star } from "lucide-react";
+import { AlertCircle, Clock, Loader2, Search as SearchIcon, Sparkles, Star } from "lucide-react";
 
 import AIStatusCard from "@/components/clinical/AIStatusCard";
 import EvidenceCards from "@/components/clinical/EvidenceCards";
@@ -25,40 +25,29 @@ function trimText(value: string, maxLength = 115) {
 
 export default function AISearch() {
   const [query, setQuery] = useState("");
-  const [debouncedQuery, setDebouncedQuery] = useState("");
-  const [isTyping, setIsTyping] = useState(false);
+  const [submittedQuery, setSubmittedQuery] = useState("");
+  const [searchRequestKey, setSearchRequestKey] = useState(0);
+  const [loading, setLoading] = useState(false);
   const [copiedCode, setCopiedCode] = useState<string | null>(null);
   const [selectedCode, setSelectedCode] = useState<string | null>(null);
   const [favoriteCodes, setFavoriteCodes] = useState<string[]>([]);
   const [recentSearches, setRecentSearches] = useState<string[]>([]);
 
   const { toast } = useToast();
-  const { results, loading, error } = useICDSearch(debouncedQuery, {
+  const { results, loading: searchLoading, error } = useICDSearch(submittedQuery, {
     limit: 20,
     debounceMs: 0,
+    requestKey: searchRequestKey,
   });
   const trimmedQuery = query.trim();
-  const debouncedTrimmedQuery = debouncedQuery.trim();
+  const submittedTrimmedQuery = submittedQuery.trim();
 
   const noResultsToastQueryRef = useRef<string | null>(null);
   const errorToastRef = useRef<string | null>(null);
 
   useEffect(() => {
-    if (!query || query.trim().length < 3) {
-      setDebouncedQuery("");
-      setIsTyping(false);
-      return;
-    }
-
-    setIsTyping(true);
-
-    const handler = window.setTimeout(() => {
-      setDebouncedQuery(query.trim());
-      setIsTyping(false);
-    }, 500);
-
-    return () => window.clearTimeout(handler);
-  }, [query]);
+    setLoading(searchLoading);
+  }, [searchLoading]);
 
   useEffect(() => {
     try {
@@ -98,19 +87,19 @@ export default function AISearch() {
   }, [copiedCode]);
 
   useEffect(() => {
-    if (debouncedTrimmedQuery.length < 3) {
+    if (submittedTrimmedQuery.length < 3) {
       noResultsToastQueryRef.current = null;
       return;
     }
-    if (isTyping || loading || error || results.length > 0) return;
-    if (noResultsToastQueryRef.current === debouncedTrimmedQuery) return;
+    if (loading || error || results.length > 0) return;
+    if (noResultsToastQueryRef.current === submittedTrimmedQuery) return;
 
-    noResultsToastQueryRef.current = debouncedTrimmedQuery;
+    noResultsToastQueryRef.current = submittedTrimmedQuery;
     toast({
       title: "Sin resultados",
-      description: `No encontramos CIE-10 para "${debouncedTrimmedQuery}".`,
+      description: `No encontramos CIE-10 para "${submittedTrimmedQuery}".`,
     });
-  }, [debouncedTrimmedQuery, error, isTyping, loading, results.length, toast]);
+  }, [submittedTrimmedQuery, error, loading, results.length, toast]);
 
   useEffect(() => {
     if (!error) {
@@ -174,11 +163,25 @@ export default function AISearch() {
 
   const handleSelect = (code: string) => {
     setSelectedCode(code);
-    pushRecentSearch(trimmedQuery);
+    pushRecentSearch(submittedTrimmedQuery || trimmedQuery);
     toast({
       title: "ICD10 seleccionado",
       description: `Seleccionaste ${code}.`,
     });
+  };
+
+  // Switched to deliberate search to improve clinical precision and reduce noisy queries
+  const handleSearch = () => {
+    const cleaned = query.trim();
+    if (cleaned.length < 3) {
+      setSubmittedQuery("");
+      setLoading(false);
+      return;
+    }
+
+    setLoading(true);
+    setSubmittedQuery(cleaned);
+    setSearchRequestKey((prev) => prev + 1);
   };
 
   const handleToggleFavorite = (code: string) => {
@@ -196,9 +199,8 @@ export default function AISearch() {
   const hasResults = results.length > 0;
   const showEmptyState = !loading && trimmedQuery.length === 0 && !hasResults;
   const showNoResults =
-    !isTyping &&
     !loading &&
-    debouncedTrimmedQuery.length >= 3 &&
+    submittedTrimmedQuery.length >= 3 &&
     !error &&
     !hasResults;
 
@@ -208,10 +210,27 @@ export default function AISearch() {
         <SearchInput
           value={query}
           onChange={setQuery}
-          onClear={() => setQuery("")}
-          loading={loading || isTyping}
+          onClear={() => {
+            setQuery("");
+            setSubmittedQuery("");
+            setLoading(false);
+          }}
+          onSubmit={handleSearch}
+          loading={loading}
           placeholder="Escribe diagnóstico, síntoma o palabra clave…"
         />
+
+        <div className="mt-3 flex justify-end">
+          <Button
+            type="button"
+            onClick={handleSearch}
+            disabled={loading}
+            className="h-10 rounded-lg px-4"
+          >
+            {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <SearchIcon className="mr-2 h-4 w-4" />}
+            Buscar diagnóstico
+          </Button>
+        </div>
       </div>
 
       <AIStatusCard />
@@ -313,7 +332,7 @@ export default function AISearch() {
               <SearchIcon className="mb-3 h-10 w-10 text-muted-foreground/40" />
               <p className="text-sm font-medium text-foreground">Sin resultados</p>
               <p className="mt-1 text-xs text-muted-foreground">
-                No encontramos CIE-10 para &quot;{debouncedTrimmedQuery}&quot;. Intenta con otro término.
+                No encontramos CIE-10 para &quot;{submittedTrimmedQuery}&quot;. Intenta con otro término.
               </p>
             </motion.div>
           )}
