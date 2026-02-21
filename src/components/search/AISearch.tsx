@@ -2,10 +2,8 @@
 
 import { useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { AlertCircle, Clock, Loader2, Search as SearchIcon, Sparkles, Star } from "lucide-react";
+import { AlertCircle, Clock, Search as SearchIcon, Sparkles, Star } from "lucide-react";
 
-import AIStatusCard from "@/components/clinical/AIStatusCard";
-import EvidenceCards from "@/components/clinical/EvidenceCards";
 import ICDResultCard from "@/components/clinical/ICDResultCard";
 import QuickExamples from "@/components/clinical/QuickExamples";
 import SearchInput from "@/components/clinical/SearchInput";
@@ -208,7 +206,7 @@ export default function AISearch() {
 
   return (
     <>
-      <div className="mt-2 px-1">
+      <div className="mx-auto mt-2 w-full max-w-2xl px-1">
         <SearchInput
           value={query}
           onChange={setQuery}
@@ -223,44 +221,48 @@ export default function AISearch() {
         />
 
         {/* Added search mode toggle (hybrid vs literal) without altering existing search logic */}
-        <div className="mt-2 flex gap-4 text-sm">
-          <label className="flex cursor-pointer items-center gap-2">
-            <input
-              type="radio"
-              name="searchMode"
-              value="hybrid"
-              checked={searchMode === "hybrid"}
-              onChange={() => setSearchMode("hybrid")}
+        <div className="mt-2 rounded-xl border border-border/70 bg-card/60 p-1 backdrop-blur-md">
+          <div className="relative grid grid-cols-2">
+            <motion.span
+              layout
+              transition={{ type: "spring", stiffness: 340, damping: 28 }}
+              className={`pointer-events-none absolute inset-y-0.5 w-[calc(50%-2px)] rounded-lg bg-gradient-to-r from-turquoise-500 to-blue-500 shadow-[0_0_18px_-4px_rgba(0,184,184,0.75)] ${
+                searchMode === "hybrid" ? "left-0.5" : "left-[calc(50%+1px)]"
+              }`}
             />
-            Inteligente
-          </label>
 
-          <label className="flex cursor-pointer items-center gap-2">
-            <input
-              type="radio"
-              name="searchMode"
-              value="literal"
-              checked={searchMode === "literal"}
-              onChange={() => setSearchMode("literal")}
-            />
-            Explorar por términos
-          </label>
+            <button
+              type="button"
+              onClick={() => setSearchMode("hybrid")}
+              className={`relative z-10 rounded-lg px-3 py-2 text-sm font-medium transition ${
+                searchMode === "hybrid" ? "text-white" : "text-muted-foreground"
+              }`}
+            >
+              CIE10 Inteligente
+            </button>
+            <button
+              type="button"
+              onClick={() => setSearchMode("literal")}
+              className={`relative z-10 rounded-lg px-3 py-2 text-sm font-medium transition ${
+                searchMode === "literal" ? "text-white" : "text-muted-foreground"
+              }`}
+            >
+              Exploración Manual
+            </button>
+          </div>
         </div>
 
-        <div className="mt-3 flex justify-end">
+        <div className="mt-2 flex justify-end">
           <Button
             type="button"
             onClick={handleSearch}
             disabled={loading}
             className="h-10 rounded-lg px-4"
           >
-            {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <SearchIcon className="mr-2 h-4 w-4" />}
-            Buscar diagnóstico
+            {loading ? "Buscando..." : "Buscar diagnóstico"}
           </Button>
         </div>
       </div>
-
-      <AIStatusCard />
 
       <AnimatePresence>
         {recentSearches.length > 0 && !hasResults && (
@@ -401,7 +403,6 @@ export default function AISearch() {
       {showEmptyState && (
         <>
           <QuickExamples onSelect={setQuery} />
-          <EvidenceCards />
         </>
       )}
     </>

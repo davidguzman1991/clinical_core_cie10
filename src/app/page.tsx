@@ -33,8 +33,8 @@ export default function Home() {
         <HeroSection />
 
         {/* Mode selector */}
-        <div className="mx-auto mt-5 w-full max-w-2xl px-1">
-          <div className="rounded-2xl border border-border/70 bg-card/60 p-1.5 backdrop-blur-md">
+        <div className="mx-auto mt-4 w-full max-w-2xl px-1">
+          <div className="rounded-2xl border border-border/70 bg-card/60 p-1.5 shadow-[0_12px_32px_-24px_rgba(0,184,184,0.5)] backdrop-blur-md">
             <div className="grid grid-cols-2 gap-1">
               <button
                 type="button"
@@ -45,7 +45,7 @@ export default function Home() {
                     : "text-muted-foreground hover:bg-white/10"
                 }`}
               >
-                IA Inteligente
+                CIE10 Inteligente
               </button>
 
               <button
@@ -57,7 +57,7 @@ export default function Home() {
                     : "text-muted-foreground hover:bg-white/10"
                 }`}
               >
-                CIE-10 Manual
+                Exploración Manual
               </button>
             </div>
           </div>
@@ -86,6 +86,19 @@ export default function Home() {
             </motion.div>
           )}
         </AnimatePresence>
+
+        <footer className="mx-auto mt-10 w-full max-w-3xl border-t border-border/40 pt-5 pb-2 text-center text-xs text-muted-foreground/80">
+          <p className="font-medium text-foreground/90">Developed by</p>
+          <p className="mt-0.5 text-sm font-semibold text-foreground">Dr. David Guzmán</p>
+          <p className="mt-0.5">Médico • Desarrollador Clínico</p>
+
+          <p className="mt-3 text-[11px] uppercase tracking-[0.12em] text-turquoise-400/90">Clinical Core v0.9 Beta</p>
+          <p className="mt-1">Versión Beta en desarrollo</p>
+
+          <p className="mx-auto mt-3 max-w-2xl text-[11px] leading-relaxed text-muted-foreground/75">
+            Esta herramienta es un apoyo a la codificación clínica. No reemplaza el juicio médico profesional.
+          </p>
+        </footer>
       </div>
 
       {/* Bottom navigation (mobile only) */}
