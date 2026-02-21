@@ -25,6 +25,7 @@ function trimText(value: string, maxLength = 115) {
 
 export default function AISearch() {
   const [query, setQuery] = useState("");
+  const [searchMode, setSearchMode] = useState<"hybrid" | "literal">("hybrid");
   const [submittedQuery, setSubmittedQuery] = useState("");
   const [searchRequestKey, setSearchRequestKey] = useState(0);
   const [loading, setLoading] = useState(false);
@@ -38,6 +39,7 @@ export default function AISearch() {
     limit: 20,
     debounceMs: 0,
     requestKey: searchRequestKey,
+    mode: searchMode,
   });
   const trimmedQuery = query.trim();
   const submittedTrimmedQuery = submittedQuery.trim();
@@ -219,6 +221,31 @@ export default function AISearch() {
           loading={loading}
           placeholder="Escribe diagnóstico, síntoma o palabra clave…"
         />
+
+        {/* Added search mode toggle (hybrid vs literal) without altering existing search logic */}
+        <div className="mt-2 flex gap-4 text-sm">
+          <label className="flex cursor-pointer items-center gap-2">
+            <input
+              type="radio"
+              name="searchMode"
+              value="hybrid"
+              checked={searchMode === "hybrid"}
+              onChange={() => setSearchMode("hybrid")}
+            />
+            Inteligente
+          </label>
+
+          <label className="flex cursor-pointer items-center gap-2">
+            <input
+              type="radio"
+              name="searchMode"
+              value="literal"
+              checked={searchMode === "literal"}
+              onChange={() => setSearchMode("literal")}
+            />
+            Explorar por términos
+          </label>
+        </div>
 
         <div className="mt-3 flex justify-end">
           <Button

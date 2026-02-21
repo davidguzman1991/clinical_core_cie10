@@ -76,11 +76,17 @@ function normalizeICDResult(item: unknown): ICD10SearchResult | null {
 
 export function useICDSearch(
   query: string,
-  options?: { limit?: number; debounceMs?: number; requestKey?: number }
+  options?: {
+    limit?: number;
+    debounceMs?: number;
+    requestKey?: number;
+    mode?: "hybrid" | "literal";
+  }
 ) {
   const limit = options?.limit ?? 20;
   const debounceMs = options?.debounceMs ?? 400;
   const requestKey = options?.requestKey ?? 0;
+  const mode = options?.mode ?? "hybrid";
 
   const abortRef = useRef<AbortController | null>(null);
   const [state, setState] = useState<UseICDSearchState>({
@@ -108,7 +114,7 @@ export function useICDSearch(
       setState((s) => ({ ...s, loading: true, error: null }));
 
       try {
-        const directUrl = buildUrl("/clinical/icd10/search", { q: trimmed });
+        const directUrl = buildUrl("/clinical/icd10/search", { q: trimmed, mode });
         if (!directUrl) {
           throw new Error(
             "Falta configurar NEXT_PUBLIC_API_BASE_URL o NEXT_PUBLIC_API_URL. Asegúrate de tener .env.local (con punto) en el root y reinicia el dev server."
@@ -127,7 +133,7 @@ export function useICDSearch(
             throw error;
           }
 
-          const proxyUrl = `/api/icd10/search?${new URLSearchParams({ q: trimmed }).toString()}`;
+          const proxyUrl = `/api/icd10/search?${new URLSearchParams({ q: trimmed, mode }).toString()}`;
           json = await fetchJson<unknown>(proxyUrl, {
             signal: controller.signal,
             timeoutMs: 9000,
@@ -160,7 +166,7 @@ export function useICDSearch(
     return () => {
       window.clearTimeout(handle);
     };
-  }, [debounceMs, limit, requestKey, shouldSearch, trimmed]);
+  }, [debounceMs, limit, mode, requestKey, shouldSearch, trimmed]);
 
   useEffect(() => {
     return () => abortRef.current?.abort();
